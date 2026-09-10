@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поділитися сетом — Let's Smile</title>
+    <!-- Firebase Web SDK (v9/v10 compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .card {
+            background: #1e1e1e;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 360px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        h2 { color: #ffc107; margin-top: 0; }
+        p { color: #b0b0b0; font-size: 14px; }
+        .btn-share {
+            background-color: #ffc107;
+            color: #000;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 28px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+            transition: background-color 0.2s;
+        }
+        .btn-share:active {
+            background-color: #ffa000;
+        }
+        .loader {
+            border: 4px solid #333;
+            border-top: 4px solid #ffc107;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="loading">
+        <div class="loader"></div>
+        <p>Завантаження даних сету...</p>
+    </div>
+
+    <div id="content" style="display: none;">
+        <h2>?? Let's Smile</h2>
+        <p>Вам надіслано новий сет смайлів / аватарів!</p>
+        <p style="font-size: 18px; font-weight: bold; color: #fff;" id="set-name">Сет: default</p>
+        
+        <button class="btn-share" onclick="shareSet()">
+            Поділитися посиланням ??
+        </button>
+    </div>
+
+    <div id="error" style="display: none; color: #ff5252;">
+        <p>Не вдалося знайти інформацію про цей сет або термін дії коду вичерпано.</p>
+    </div>
+</div>
+
+<script>
+    // 1. Конфігурація вашого Firebase проекту
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "lets-smile.firebaseapp.com",
+        projectId: "lets-smile",
+        storageBucket: "lets-smile.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 2. Зчитуємо URL-параметри
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+
+    let shareData = {
+        title: "Let's Smile",
+        text: "Переглянь цей сет у Let's Smile!",
+        url: window.location.href
+    };
+
+    if (code) {
+        // 3. Завантажуємо інформацію про код з колекції 'shares'
+        db.collection('shares').doc(code).get().then((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                document.getElementById('set-name').innerText = "Сет: " + (data.setId || "default");
+                
+                shareData.text = `Переглянь сет "${data.setId}" у додаку Let's Smile!`;
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } else {
+                showError();
+            }
+        }).catch((err) => {
+            console.error(err);
+            showError();
+        });
+    } else {
+        showError();
+    }
+
+    function showError() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+    }
+
+    // 4. Виклики нативного діалогу "Поділитися"
+    async function shareSet() {
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                console.log('Помилка або скасування поділу:', err);
+            }
+        } else {
+            // Фолбек для браузерів без підтримки Web Share API (копіюємо в буфер)
+            navigator.clipboard.writeText(shareData.url);
+            alert('Посилання скопійовано в буфер обміну!');
+        }
+    }
+</script>
+
+</body>
+</html>
